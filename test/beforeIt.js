@@ -2,6 +2,9 @@ function heredoc(fn) {
     return fn.toString().replace(/^[^\/]+\/\*!?\s?/, '').
             replace(/\*\/[^\/]+$/, '').trim().replace(/>\s*</g, '><')
 }
+function getInnerHTML(el){
+   return el.innerHTML.toLowerCase().replace(/\s*class=""/,'')
+}
 var textProp = 'textContent' in document ? 'textContent': 'innerText'
 function fireClick(el) {
     if (el.click) {
@@ -15,3 +18,11 @@ function fireClick(el) {
     }
 }
 
+  var dddDIV = document.getElementById('aaa')
+  var expect1 = function(a){
+      return {
+          toBe: function(b){
+              console.log(a, b, a=== b)
+          }
+      }
+  }

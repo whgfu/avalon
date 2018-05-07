@@ -12,11 +12,13 @@ export var $$skipArray = {
     $render: falsy,
     $track: falsy,
     $element: falsy,
+    $computed:falsy,
     $watch: falsy,
     $fire: falsy,
     $events: falsy,
     $accessors: falsy,
     $hashcode: falsy,
+    $mutations: falsy,
     $vbthis:falsy,
     $vbsetter: falsy
 }

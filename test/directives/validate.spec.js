@@ -62,7 +62,6 @@ describe('validate', function () {
         fireClick(btn)
         setTimeout(function () {
             expect(validate.onValidateAll).toHaveBeenCalled()
-            console.log('validate')
             var args = validate.onValidateAll.calls.argsFor(0)
             var first = args[0]
             expect(first.length).toBe(1)
@@ -77,7 +76,7 @@ describe('validate', function () {
                 expect(validate.onValidateAll.calls.count()).toBe(2)
                 expect(validate.onValidateAll.calls.argsFor(1)[0]).toEqual([])
                 done()
-            }, 300)
+            }, 100)
 
         },100)
     })
@@ -98,13 +97,18 @@ describe('validate', function () {
         spyOn(foo, 'onError')
         spyOn(foo, 'onSuccess')
         //开始测试
+        var rules = {
+                maxlength: 7
+            }
         var options = {
             value: elem.value,
             dom: elem,
+            vdom: {
+                children: [],
+                rules: rules
+            },
             validator: foo,
-            rules: {
-                maxlength: 7
-            }
+            rules:rules
         }
         valiDir.validate(options, false).then(function (a) {
             expect(a[0].getMessage()).toBe('最多输入7个字')
@@ -139,21 +143,24 @@ describe('validate', function () {
         var valiDir = avalon.directives.validate
         var elem = document.createElement('input')
         elem.value = 'test2example.com'
-
+       var rules = {
+            maxlength: false
+       }
         //开始测试
         var options = {
             value: elem.value,
             dom: elem,
             validator: {},
-            rules: {
-                maxlength: false
-            }
+            vdom: {
+                children: [],
+                rules: rules
+            },
+            rules: rules
         }
         valiDir.validate(options, true).then(function (a) {
             expect(a.length).toBe(0)
 
             done()
-
 
         })
 
@@ -167,15 +174,26 @@ describe('validate', function () {
         var inputOff = document.createElement('input')
         div.appendChild(inputOK)
         div.appendChild(inputDisabled)
+        var children = []
         function Field(dom, rules) {
-            this.dom = dom
-            this.value = 'dfdsgsdfgffg'
-            this.rules = rules || {
+            var r = rules || {
                 maxlength: 4
             }
+            this.dom = dom
+            dom._ms_duplex_ = this
+            var vdom = this.vdom = {
+                duplex: this,
+                rules: r
+            }
+            children.push(vdom)
+            this.value = 'dfdsgsdfgffg'
+            this.rules = r
         }
         valiDir.validateAll.call({
             dom: div,
+            vdom: {
+                children: children
+            },
             fields: [
                 new Field(inputOK),
                 new Field(inputOK),
@@ -192,8 +210,6 @@ describe('validate', function () {
             deduplicateInValidateAll: true
         })
     })
-    
-
-
+   
 
 })

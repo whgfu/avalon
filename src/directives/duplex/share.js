@@ -3,6 +3,7 @@ import { rcheckedType } from '../../dom/rcheckedType'
 import { lookupOption } from './option'
 import { addScope, makeHandle } from '../../parser/index'
 import { fromString } from '../../vtree/fromString'
+import { updateModel } from './updateDataHandle'
 
 
 var rchangeFilter = /\|\s*change\b/
@@ -55,11 +56,11 @@ export function duplexInit() {
                     'input'
     }
     this.dtype = dtype
-    var isChanged = false, debounceTime = 0
+ 
     //判定是否使用了 change debounce 过滤器
     // this.isChecked = /boolean/.test(parsers)
     if (dtype !== 'input' && dtype !== 'contenteditable') {
-        delete this.isChange
+        delete this.isChanged
         delete this.debounceTime
     } else if (!this.isChecked) {
         this.isString = true
@@ -74,7 +75,6 @@ export function duplexInit() {
 
 }
 export function duplexDiff(newVal, oldVal) {
-
     if (Array.isArray(newVal)) {
         if (newVal + '' !== this.compareVal) {
             this.compareVal = newVal + ''
@@ -93,29 +93,15 @@ export function duplexDiff(newVal, oldVal) {
 
 }
 
-
-export function duplexValidate(node, vdom) {
-    //将当前虚拟DOM的duplex添加到它上面的表单元素的validate指令的fields数组中
-    var field = vdom.duplex
-    var rules = vdom.rules
-
-    if (rules && !field.validator) {
-        while (node && node.nodeType === 1) {
-            var validator = node._ms_validate_
-            if (validator) {
-                field.rules = rules
-                field.validator = validator
-
-                if (avalon.Array.ensure(validator.fields, field)) {
-                    validator.addField(field)
-                }
-                break
-            }
-            node = node.parentNode
-        }
-    }
+export function duplexBind(vdom, addEvent){
+    var dom = vdom.dom
+    this.dom = dom
+    this.vdom = vdom
+    this.duplexCb = updateModel
+    dom._ms_duplex_ = this
+    //绑定事件
+    addEvent(dom, this)
 }
-
 
 export var valueHijack = true
 try { //#272 IE9-IE11, firefox
@@ -159,9 +145,9 @@ function parseValue(val) {
 
 export var updateView = {
     input: function () {//处理单个value值处理
-        this.node.props.value = this.value + ''
-        this.dom.value = this.value
-
+        var vdom = this.node
+        var value = this.value + ''
+        vdom.dom.value =   vdom.props.value = value
     },
     updateChecked: function (vdom, checked) {
         if (vdom.dom) {
@@ -183,11 +169,12 @@ export var updateView = {
     checkbox: function () {//处理多个checked属性
         var node = this.node
         var props = node.props
-        var value = props.value
+        var value = props.value+''
         var values = [].concat(this.value)
         var checked = values.some(function (el) {
-            return el + '' === value
+            return el + ''=== value
         })
+        
         props.defaultChecked = props.checked = checked
         updateView.updateChecked(node, checked)
     },

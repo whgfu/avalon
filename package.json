@@ -5,7 +5,7 @@
     "type": "git",
     "url": "https://github.com/RubyLouvre/avalon.git"
   },
-  "version": "2.2.1",
+  "version": "2.2.10",
   "description": "an elegant efficient express mvvm framework",
   "main": "dist/avalon.js",
   "keywords": [
@@ -13,20 +13,24 @@
     "mvvm",
     "virtual dom"
   ],
+  "scripts": {
+    "buildAvalon": "node build",
+    "build": "karma start karma.conf",
+    "sauce": "karma start karma.sauce"
+  },
   "dependencies": {},
   "devDependencies": {
     "babel-core": "^6.17.0",
-    "babel-plugin-external-helpers": "^6.8.0",
-    "babel-preset-es2015": "^6.16.0",
-    "babel-preset-es2015-loose": "^8.0.0",
-    "babel-preset-stage-0": "^6.16.0",
+    "babel-preset-avalon": "^1.0.0",
+    "codecov": "^1.0.1",
     "es3ify": "^0.2.2",
-    "karma": "^0.12.0",
+    "karma": "^0.12.37",
     "karma-chrome-launcher": "^0.1.2",
     "karma-coverage": "^1.1.1",
     "karma-firefox-launcher": "^1.0.0",
     "karma-ie-launcher": "^1.0.0",
     "karma-jasmine": "^0.2.2",
+    "karma-opera-launcher": "^1.0.0",
     "karma-phantomjs-launcher": "^1.0.2",
     "karma-sauce-launcher": "^0.2.14",
     "karma-sourcemap-loader": "^0.3.7",

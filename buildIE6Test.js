@@ -18,9 +18,9 @@ module.exports = rollup.rollup({
     cache: cache,
 
     plugins: [
-        // istanbul({
-        //   exclude: ['test/**/*.js']
-        // })
+        istanbul({
+            exclude: ['test/**/*.js']
+        })
     ]
 }).then(function(bundle) {
     // Generate bundle + sourcemap
@@ -37,7 +37,7 @@ module.exports = rollup.rollup({
     replace(/avalon\$1/g, 'avalon')
 
     result = babel.transform(result.code, {
-        presets: ['es2015-loose', 'stage-0'],
+        presets: ['avalon'],
         compact: false
     })
 

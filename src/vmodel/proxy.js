@@ -64,7 +64,6 @@ if (typeof Proxy === 'function') {
             }
         }
 
-
         return vm
     }
 
@@ -78,7 +77,7 @@ if (typeof Proxy === 'function') {
         return '☥' + str + '☥'
     }
     var traps = {
-        deleteProperty: function(target, name) {
+        deleteProperty(target, name) {
             if (target.hasOwnProperty(name)) {
                 //移除一个属性,分三昌:
                 //1. 移除监听器
@@ -90,71 +89,74 @@ if (typeof Proxy === 'function') {
             }
             return true
         },
-        get: function(target, name) {
+        get(target, name) {
             if (name === '$model') {
                 return platform.toJson(target)
             }
-
             //收集依赖
-            var mutation = target.$accessors[name]
-            var childObj = target[name]
-            return mutation ? mutation.get() : childObj
+            var m = target.$accessors[name]
+            if (m && m.get) {
+                return m.get()
+            }
+
+            return target[name]
         },
-        set: function(target, name, value) {
-            if (name === '$model') {
-                return true
-            }
-            if (name === '$computed') {
-                target[name] = value
-                return true
-            }
-
-            var oldValue = target[name]
-            if (oldValue !== value) {
-                if (canHijack(name, value, target.$proxyItemBackdoor)) {
-                    var mutations = target.$accessors
-                    var $computed = target.$computed || {}
-                        //如果是新属性
-                    if (!(name in $$skipArray) && !mutations[name]) {
-                        updateTrack(target, name, value, !!$computed[name])
-                            //   var a = mutations[name].get()
-                        return true
-                    }
-                    var mutation = mutations[name]
-                        //创建子对象
-
-                    mutation.set(value)
-                    target[name] = mutation.value
-                } else {
-                    target[name] = value
+        set(target, name, value) {
+                if (name === '$model' || name === '$track') {
+                    return true
                 }
+                if (name in $$skipArray) {
+                    target[name] = value
+                    return true
+                }
+               
+                var ac = target.$accessors
+                var oldValue = ac[name] ? ac[name].value : target[name]
+      
+                if (oldValue !== value) {
+                    if (!target.hasOwnProperty(name)){
+                       updateTrack(target, name)
+                    }
+                    if (canHijack(name, value, target.$proxyItemBackdoor)) {
+                        var $computed = target.$computed || {}
+                            //如果是新属性
+                        if (!ac[name]) {
+                            target[name] = value //必须设置，用于hasOwnProperty
+                            var isComputed = !!$computed[name]
+                            var Observable = isComputed ? Computed : Mutation
+                            ac[name] = new Observable(name, value, target)
+                            return true
+                        }
+                        var mutation = ac[name]
+                            //创建子对象
+                        mutation.set(value)
+                        target[name] = mutation.value
+                    } else {
+                        target[name] = value
+                    }
+                }
+                // set方法必须返回true, 告诉Proxy已经成功修改了这个值,否则会抛
+                //'set' on proxy: trap returned falsish for property xxx 错误
+                return true
             }
-            // set方法必须返回true, 告诉Proxy已经成功修改了这个值,否则会抛
-            //'set' on proxy: trap returned falsish for property xxx 错误
-            return true
-        },
-        has: function(target, name) {
-            return target.hasOwnProperty(name)
-        }
+            //has 只能用于 in 操作符，没什么用删去
     }
 
-    function updateTrack(target, name, value, isComputed) {
-        var arr = target.$track.split('☥')
-        if (arr[0] === '') {
-            arr.shift()
-        }
+    function updateTrack(target, name) {
+        var arr = target.$track.match(/[^☥]+/g) || []
         arr.push(name)
-        var Observable = isComputed ? Computed : Mutation
-        target.$accessors[name] = new Observable(name, value, target)
         target.$track = arr.sort().join('☥')
     }
-    platform.itemFactory = function itemFactory(before, after) {
+
+
+    avalon.itemFactory = platform.itemFactory = function itemFactory(before, after) {
         var definition = before.$model
         definition.$proxyItemBackdoor = true
         definition.$id = before.$hashcode +
             String(after.hashcode || Math.random()).slice(6)
         definition.$accessors = avalon.mix({}, before.$accessors)
         var vm = platform.modelFactory(definition)
+        vm.$track = before.$track
         for (var i in after.data) {
             vm[i] = after.data[i]
         }

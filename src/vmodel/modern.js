@@ -37,7 +37,7 @@ function $watch(expr, callback, deep) {
         core[expr].push(w)
     }
     return function() {
-        w.destroy()
+        w.dispose()
         avalon.Array.remove(core[expr], w)
         if (core[expr].length === 0) {
             delete core[expr]
@@ -53,17 +53,23 @@ export function fireFactory(core) {
 }
 
 
-export function afterCreate(vm, core, keys) {
-    var $accessors = vm.$accessors
+export function afterCreate(vm, core, keys, bindThis) {
+    var ac = vm.$accessors
         //隐藏系统属性
     for (var key in $$skipArray) {
         hideProperty(vm, key, vm[key])
     }
     //为不可监听的属性或方法赋值
-    for (var i = 0; i < keys.length; i++) {
-        key = keys[i]
-        if (!(key in $accessors)) {
-            vm[key] = core[key]
+    for (let i = 0; i < keys.length; i++) {
+        let key = keys[i]
+        if (!(key in ac)) {
+            let val = core[key]
+            if (bindThis && typeof val === 'function') {
+                vm[key] = val.bind(vm)
+                vm[key]._orig = val
+                continue
+            }
+            vm[key] = val
         }
     }
     vm.$track = keys.join('☥')
@@ -74,5 +80,4 @@ platform.fireFactory = fireFactory
 platform.watchFactory = watchFactory
 platform.afterCreate = afterCreate
 platform.hideProperty = hideProperty
-platform.toModel = function() {}
 platform.createViewModel = Object.defineProperties

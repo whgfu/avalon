@@ -2,7 +2,7 @@ var rollup = require('rollup');
 var fs = require('fs');
 var babel = require("babel-core");
 var transform = require('es3ify').transform;
-var less = function(a){return a}//require('semicolon-less')
+var less = function(a) { return a } //require('semicolon-less')
 
 // used to track the cache for subsequent bundles
 var cache;
@@ -41,7 +41,7 @@ module.exports = rollup.rollup({
 
 
     result = babel.transform(result.code, {
-        presets: ['es2015-loose', 'stage-0'],
+        presets: ['avalon'],
         compact: false
     })
 
@@ -51,20 +51,15 @@ module.exports = rollup.rollup({
     }
     var feather = heredoc(function() {
         /*
-https://github.com/RubyLouvre/avalon/tree/2.2.1
-添加计算属性
-添加事务
-内部所有类使用es6重写
-修正使用requirejs加载avalon2.2.0，返回空对象的BUG
-优化组件延迟定义的逻辑
-fromString进行性能优化
-fix 空字符串不生成节点的BUG
-确保onReady的执行时机，多个ms-controller套嵌，先执行里面的，再执行外面的    
+https://github.com/RubyLouvre/avalon/tree/2.2.9
+修复ms-for循环生成option与ms-deplex的联动问题
+解决 IE8 html 属性中的中文被转成 unicode 字符串问题 
+修复多个计算属性不更新的问题 
 */
     })
     var now = new Date
     var snow = now.getFullYear() + '-' + (now.getMonth() + 1) +
-        '-' + now.getDate() + ':' + now.getHours()
+        '-' + now.getDate() + ':' + now.getHours() + ':' + now.getMinutes()
     var banner = '/*!\nbuilt in ' + snow + ' version ' + json.version + ' by 司徒正美\n' + feather + '\n\n*/'
 
     var code = banner + transform(result.code).
@@ -79,4 +74,3 @@ fix 空字符串不生成节点的BUG
 }).catch(function(e) {
     console.log('error', e)
 })
-

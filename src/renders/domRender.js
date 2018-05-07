@@ -22,21 +22,21 @@ import { startWith, groupTree, dumpTree, getRange } from './share'
 avalon.scan = function(node, vm, beforeReady) {
     return new Render(node, vm, beforeReady || avalon.noop)
 }
-var viewID
-    /**
-     * avalon.scan 的内部实现
-     */
-class Render {
-    constructor(node, vm, beforeReady) {
-        this.root = node //如果传入的字符串,确保只有一个标签作为根节点
-        this.vm = vm
-        this.beforeReady = beforeReady
-        this.bindings = [] //收集待加工的绑定属性
-        this.callbacks = []
-        this.directives = []
-        this.init()
-    }
 
+/**
+ * avalon.scan 的内部实现
+ */
+function Render(node, vm, beforeReady) {
+    this.root = node //如果传入的字符串,确保只有一个标签作为根节点
+    this.vm = vm
+    this.beforeReady = beforeReady
+    this.bindings = [] //收集待加工的绑定属性
+    this.callbacks = []
+    this.directives = []
+    this.init()
+}
+
+Render.prototype = {
     /**
      * 开始扫描指定区域
      * 收集绑定属性
@@ -57,7 +57,7 @@ class Render {
         this.root = vnodes[0]
         this.vnodes = vnodes
         this.scanChildren(vnodes, this.vm, true)
-    }
+    },
 
     scanChildren(children, scope, isRoot) {
         for (var i = 0; i < children.length; i++) {
@@ -80,7 +80,7 @@ class Render {
         if (isRoot) {
             this.complete()
         }
-    }
+    },
 
     /**
      * 从文本节点获取指令
@@ -94,7 +94,7 @@ class Render {
                 nodeValue: vdom.nodeValue
             }])
         }
-    }
+    },
 
     /**
      * 从注释节点获取指令
@@ -107,7 +107,7 @@ class Render {
         if (startWith(vdom.nodeValue, 'ms-for:')) {
             this.getForBinding(vdom, scope, parentChildren)
         }
-    }
+    },
 
     /**
      * 从元素节点的nodeName与属性中获取指令
@@ -152,7 +152,7 @@ class Render {
             var temp = templateCaches && templateCaches[$id]
             if (temp) {
                 avalon.log('前端再次渲染后端传过来的模板')
-                var node = fromString(tmpl)[0]
+                var node = fromString(temp)[0]
                 for (var i in node) {
                     vdom[i] = node[i]
                 }
@@ -216,7 +216,7 @@ class Render {
         ) {
             this.scanChildren(children, scope, false)
         }
-    }
+    },
 
 
     /**
@@ -241,7 +241,7 @@ class Render {
             fn()
         }
         this.optimizeDirectives()
-    }
+    },
 
     /**
      * 将收集到的绑定属性进行深加工,最后转换指令
@@ -250,8 +250,10 @@ class Render {
     yieldDirectives() {
         var tuple
         while (tuple = this.bindings.shift()) {
-            var [vdom, scope, dirs] = tuple
-            var bindings = []
+            var vdom = tuple[0],
+                scope = tuple[1],
+                dirs = tuple[2],
+                bindings = []
             if ('nodeValue' in dirs) {
                 bindings = parseInterpolate(dirs)
             } else if (!('ms-skip' in dirs)) {
@@ -270,7 +272,7 @@ class Render {
                 this.directives.push(directive)
             }
         }
-    }
+    },
 
     /**
      * 修改指令的update与callback方法,让它们以后执行时更加高效
@@ -279,54 +281,31 @@ class Render {
     optimizeDirectives() {
         for (var i = 0, el; el = this.directives[i++];) {
             el.callback = directives[el.type].update
-            el.update = function() {
-                var oldVal = this.beforeUpdate()
-                var newVal = this.value = this.get()
-                if (this.callback && this.diff(newVal, oldVal)) {
-                    this.callback(this.node, this.value)
-                    var vm = this.vm
-                    var $render = vm.$render
-                    var list = vm.$events['onViewChange']
-                        /* istanbul ignore if */
-                    if (list && $render &&
-                        $render.root &&
-                        !avalon.viewChanging) {
-                        if (viewID) {
-                            clearTimeout(viewID)
-                            viewID = null
-                        }
-                        viewID = setTimeout(function() {
-                            list.forEach(function(el) {
-                                el.callback.call(vm, {
-                                    type: 'viewchange',
-                                    target: $render.root,
-                                    vmodel: vm
-                                })
-                            })
-                        })
-
-                    }
-
-                }
-                this._isScheduled = false
-            }
+            el.update = newUpdate
             el._isScheduled = false
         }
-    }
+    },
+    update: function() {
+        for (var i = 0, el; el = this.directives[i++];) {
+            el.update()
+        }
+    },
 
     /**
      * 销毁所有指令
      * @returns {undefined}
      */
-    destroy() {
+    dispose() {
         var list = this.directives || []
-        for (var i = 0, el; el = list[i++];) {
-            el.destroy()
+        for (let i = 0, el; el = list[i++];) {
+            el.dispose()
         }
-        for (var i in this) {
-            delete this[i]
+        //防止其他地方的this.innerRender && this.innerRender.dispose报错
+        for (let i in this) {
+            if (i !== 'dispose')
+                delete this[i]
         }
-    }
+    },
 
     /**
      * 将循环区域转换为for指令
@@ -356,7 +335,7 @@ class Render {
                 parentChildren
             }
         ])
-    }
+    },
 
 
     /**
@@ -387,4 +366,37 @@ class Render {
 
     }
 
+}
+var viewID
+
+function newUpdate() {
+    var oldVal = this.beforeUpdate()
+    var newVal = this.value = this.get()
+    if (this.callback && this.diff(newVal, oldVal)) {
+        this.callback(this.node, this.value)
+        var vm = this.vm
+        var $render = vm.$render
+        var list = vm.$events['onViewChange']
+            /* istanbul ignore if */
+        if (list && $render &&
+            $render.root &&
+            !avalon.viewChanging) {
+            if (viewID) {
+                clearTimeout(viewID)
+                viewID = null
+            }
+            viewID = setTimeout(function() {
+                list.forEach(function(el) {
+                    el.callback.call(vm, {
+                        type: 'viewchange',
+                        target: $render.root,
+                        vmodel: vm
+                    })
+                })
+            })
+
+        }
+
+    }
+    this._isScheduled = false
 }

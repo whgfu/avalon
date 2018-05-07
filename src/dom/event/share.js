@@ -59,12 +59,15 @@ avalon.bind = function(elem, type, fn) {
             setEventId(elem, keys.join(','))
                 //将令牌放进avalon-events属性中
         }
-
+        return fn
     } else {
         /* istanbul ignore next */
-        avalon._nativeBind(elem, type, fn)
+        function cb(e) {
+            fn.call(elem, new avEvent(e))
+        }
+        avalon._nativeBind(elem, type, cb)
+        return cb
     }
-    return fn //兼容之前的版本
 }
 
 function setEventId(node, value) {
@@ -174,57 +177,54 @@ function delegateEvent(type) {
     }
 }
 
-export class avEvent {
-    constructor(event) {
-        if (event.originalEvent) {
-            return event
-        }
-        for (var i in event) {
-            if (!avEvent.prototype[i]) {
-                this[i] = event[i]
-            }
-        }
-        if (!this.target) {
-            this.target = event.srcElement
-        }
-        var target = this.target
-        this.fixEvent()
-        this.timeStamp = new Date() - 0
-        this.originalEvent = event
-    }
-
-    //chrome如果操作真实事件的webkitMovementX/Y会抛警告
-    webkitMovementY() {}
-
-    webkitMovementX() {}
-
-    fixEvent() {}
-    preventDefault() {
+var eventProto = {
+    webkitMovementY: 1,
+    webkitMovementX: 1,
+    keyLocation: 1,
+    fixEvent: function() {},
+    preventDefault: function() {
         var e = this.originalEvent || {}
         e.returnValue = this.returnValue = false
         if (modern && e.preventDefault) {
             e.preventDefault()
         }
-    }
-    stopPropagation() {
+    },
+    stopPropagation: function() {
         var e = this.originalEvent || {}
         e.cancelBubble = this.cancelBubble = true
         if (modern && e.stopPropagation) {
             e.stopPropagation()
         }
-    }
-    stopImmediatePropagation() {
+    },
+    stopImmediatePropagation: function() {
         this.stopPropagation()
         this.stopImmediate = true
-    }
-    toString() {
+    },
+    toString: function() {
         return '[object Event]' //#1619
     }
 }
 
-
-//针对firefox, chrome修正mouseenter, mouseleave
-/* istanbul ignore if */
+export function avEvent(event) {
+    if (event.originalEvent) {
+        return event
+    }
+    for (var i in event) {
+        if (!eventProto[i]) {
+            this[i] = event[i]
+        }
+    }
+    if (!this.target) {
+        this.target = event.srcElement
+    }
+    var target = this.target
+    this.fixEvent()
+    this.timeStamp = new Date() - 0
+    this.originalEvent = event
+}
+avEvent.prototype = eventProto
+    //针对firefox, chrome修正mouseenter, mouseleave
+    /* istanbul ignore if */
 if (!('onmouseenter' in root)) {
     avalon.each({
         mouseenter: 'mouseover',

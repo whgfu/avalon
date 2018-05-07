@@ -1,13 +1,13 @@
 import { avalon, document, msie } from '../seed/core'
 
-export class VElement {
-
-    constructor(type, props, children, isVoidTag) {
-        this.nodeName = type
-        this.props = props
-        this.children = children
-        this.isVoidTag = isVoidTag
-    }
+export function VElement(type, props, children, isVoidTag) {
+    this.nodeName = type
+    this.props = props
+    this.children = children
+    this.isVoidTag = isVoidTag
+}
+VElement.prototype = {
+    constructor: VElement,
     toDOM() {
         if (this.dom)
             return this.dom
@@ -38,18 +38,28 @@ export class VElement {
         var template = c[0] ? c[0].nodeValue : ''
         switch (this.nodeName) {
             case 'script':
+                dom.type = 'noexec'
+                 dom.text = template
+                 try{
+                     dom.innerHTML = template
+                 }catch(e){}
+                dom.type = props.type || ''
+                break
+            case 'noscript':
+                dom.textContent = template
             case 'style':
             case 'xmp':
-            case 'noscript':
             case 'template':
                 try {
                     dom.innerHTML = template
                 } catch (e) {
-                    this.hackIE(dom, this.nodeName, template, props)
+                    /* istanbul ignore next*/
+                    hackIE(dom, this.nodeName, template)
                 }
                 break
             case 'option':
                 //IE6-8,为option添加文本子节点,不会同步到text属性中
+                /* istanbul ignore next */
                 if (msie < 9)
                     dom.text = template
             default:
@@ -62,24 +72,9 @@ export class VElement {
                 break
         }
         return this.dom = dom
-    }
-    hackIE(dom, nodeName, template, prop) {
-        switch (dom.nodeName) {
-            case 'script':
-                dom.type = 'noexec'
-                dom.text = template
-                dom.type = props.type || ''
-                break
-            case 'style':
-                dom.setAttribute('type', 'text/css')
-                dom.styleSheet.cssText = template
-                break
-            case 'xmp': //IE6-8,XMP元素里面只能有文本节点,不能使用innerHTML
-            case 'noscript':
-                dom.textContent = template
-                break
-        }
-    }
+    },
+    /* istanbul ignore next */
+   
     toHTML() {
         var arr = []
         var props = this.props || {}
@@ -103,7 +98,18 @@ export class VElement {
         return str + '</' + this.nodeName + '>'
     }
 }
-
+ function hackIE(dom, nodeName, template) {
+        switch (nodeName) {
+            case 'style':
+                dom.setAttribute('type', 'text/css')
+                dom.styleSheet.cssText = template
+                break
+            case 'xmp': //IE6-8,XMP元素里面只能有文本节点,不能使用innerHTML
+            case 'noscript':
+                dom.textContent = template
+                break
+        }
+    }
 function skipFalseAndFunction(a) {
     return a !== false && (Object(a) !== a)
 }

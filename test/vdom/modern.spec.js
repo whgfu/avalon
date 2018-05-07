@@ -1,4 +1,7 @@
 import { avalon, vdom, VText, VComment, VElement, VFragment } from '../../src/vdom/modern'
+import { hideProperty } from '../../src/vmodel/modern'
+import '../../src/renders/domRender'
+
 describe('vdom', function () {
     describe('VElement', function () {
         it('test', function () {
@@ -54,7 +57,7 @@ describe('vdom', function () {
 
                 expect(dom.textContent).toMatch(' xxx ')
             }
-            expect(dom.innerText).toMatch(/xx/)
+            expect(dom[textProp]).toMatch(/xx/)
             expect(dom.innerHTML).toBe(' xxx ')
             var option2 = new VElement('option', { 'value': 'eee' }, [
                 new VText('')

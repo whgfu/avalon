@@ -1,9 +1,8 @@
 import { avalon, config } from '../seed/core'
 
 avalon.pendingActions = []
+avalon.uniqActions = {}
 avalon.inTransaction = 0
-avalon.inBatch = 0
-avalon.observerQueue = []
 config.trackDeps = false
 avalon.track = function() {
     if (config.trackDeps) {
@@ -16,26 +15,16 @@ avalon.track = function() {
  * During a batch `onBecomeUnobserved` will be called at most once per observable.
  * Avoids unnecessary recalculations.
  */
-export function startBatch(name) {
-    avalon.inBatch++;
-}
-export function endBatch(name) {
-    if (avalon.inBatch === 1) {
-        avalon.observerQueue.forEach(function(el) {
-            el.isAddToQueue = false
-        })
-        avalon.observerQueue = [];
-    }
-    avalon.inBatch--
-}
+
 
 export function runActions() {
     if (avalon.isRunningActions === true || avalon.inTransaction > 0)
         return
     avalon.isRunningActions = true
-    var tasks = avalon.pendingActions.splice(0);
+    var tasks = avalon.pendingActions.splice(0, avalon.pendingActions.length)
     for (var i = 0, task; task = tasks[i++];) {
         task.update()
+        delete avalon.uniqActions[task.uuid]
     }
     avalon.isRunningActions = false
 }
@@ -49,34 +38,28 @@ export function propagateChanged(target) {
 }
 
 //将自己抛到市场上卖
-export function reportObserved(observer) {
+export function reportObserved(target) {
     var action = avalon.trackingAction || null
     if (action !== null) {
-        avalon.track('收集到', observer.expr)
-        action.mapIDs[observer.uuid] = observer;
-        observer.isCollected = 1
-    } else if (observer.observers.length === 0) {
-        addToQueue(observer);
+
+        avalon.track('征收到', target.expr)
+        action.mapIDs[target.uuid] = target;
     }
+
 }
 
-function addToQueue(observer) {
-    if (!observer.isAddToQueue) {
-        observer.isAddToQueue = true;
-        avalon.observerQueue.push(observer);
-    }
-}
 
 var targetStack = []
 
 export function collectDeps(action, getter) {
-
+    if (!action.observers)
+        return
     var preAction = avalon.trackingAction
     if (preAction) {
         targetStack.push(preAction)
     }
     avalon.trackingAction = action
-    avalon.track('【action】', action.type, action.expr, '开始收集依赖项')
+    avalon.track('【action】', action.type, action.expr, '开始征收依赖项')
         //多个observe持有同一个action
     action.mapIDs = {} //重新收集依赖
     var hasError = true,
@@ -86,7 +69,7 @@ export function collectDeps(action, getter) {
         hasError = false
     } finally {
         if (hasError) {
-            avalon.warn('collectDeps fail', getter + "", action)
+            avalon.warn('collectDeps fail', getter + '')
             action.mapIDs = {}
             avalon.trackingAction = preAction
         } else {
@@ -107,16 +90,30 @@ export function collectDeps(action, getter) {
 function resetDeps(action) {
     var prev = action.observers,
         curr = [],
-        checked = {}
+        checked = {},
+        ids = []
     for (let i in action.mapIDs) {
         let dep = action.mapIDs[i]
         if (!dep.isAction) {
+            if (!dep.observers) { //如果它已经被销毁
+                delete action.mapIDs[i]
+                continue
+            }
+            ids.push(dep.uuid)
             curr.push(dep)
-            dep.isCollected = false
             checked[dep.uuid] = 1
+            if (dep.lastAccessedBy === action.uuid) {
+                continue
+            }
+            dep.lastAccessedBy = action.uuid
             avalon.Array.ensure(dep.observers, action)
         }
     }
+    var ids = ids.sort().join(',')
+    if (ids === action.ids) {
+        return
+    }
+    action.ids = ids
     if (!action.isComputed) {
         action.observers = curr
     } else {
@@ -150,7 +147,6 @@ function transaction(action, thisArg, args) {
 avalon.transaction = transaction
 
 export function transactionStart(name) {
-    startBatch(name)
     avalon.inTransaction += 1;
 }
 
@@ -159,5 +155,4 @@ export function transactionEnd(name) {
         avalon.isRunningActions = false
         runActions()
     }
-    endBatch(name)
 }

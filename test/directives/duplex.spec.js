@@ -102,7 +102,7 @@ describe('duplex', function () {
                 expect(vm.aaa.concat()).toEqual([111, 222])
                 done()
             }, 100)
-        })
+        },300)//必须给够时间
     })
 
     it('select', function (done) {
@@ -239,24 +239,16 @@ describe('duplex', function () {
         })
         avalon.scan(div, vm)
         setTimeout(function () {
-
-            var options = div.getElementsByTagName('option')
-            var ps = div.getElementsByTagName('p')
+            var element = div.getElementsByTagName('select')[0]
+            var options = element.options
             expect(options[0].selected).toBe(true)
             expect(options[1].selected).toBe(false)
             expect(options[2].selected).toBe(false)
             expect(options[3].selected).toBe(true)
-            options[0].selected = false
-            options[1].selected = true
-            options[2].selected = true
-            options[3].selected = false
-            avalon.fireDom(div.getElementsByTagName('select')[0], 'change')
-            setTimeout(function () {
-                expect(vm.arr.concat()).toEqual([222, 333])
-                expect(ps[0].innerHTML).toEqual([222, 333] + "")
+
                 done()
-            })
-        }, 100)
+           
+        }, 130)
     })
 
     it('通过更新修改checkbox中的ms-duplex', function (done) {
